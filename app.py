@@ -13,19 +13,25 @@ from datetime import datetime, timedelta, timezone
 import os
 import shlex
 
+
 app = Flask(__name__)
+
 
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
 
+
 if not CHANNEL_ACCESS_TOKEN or not CHANNEL_SECRET:
     raise ValueError("Missing CHANNEL_ACCESS_TOKEN or CHANNEL_SECRET environment variable")
+
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
+
 # 台灣時區 UTC+8
 TW_TZ = timezone(timedelta(hours=8))
+
 
 bosses = [
     {"name": "不死鳥", "tags": ["不死", "火鳥", "鳥"], "respawn": 480},
@@ -61,11 +67,16 @@ bosses = [
     {"name": "巨蟻女皇", "tags": ["25", "26", "螞蟻"], "respawn": 210},
 ]
 
+
 spawn_list = []
+
+
 
 
 def now_tw():
     return datetime.now(TW_TZ)
+
+
 
 
 def find_boss(keyword):
@@ -76,11 +87,15 @@ def find_boss(keyword):
     return None
 
 
+
+
 def parse_time(time_str):
     now = now_tw()
 
+
     if time_str == "6666":
         return now
+
 
     if ":" in time_str:
         try:
@@ -88,6 +103,7 @@ def parse_time(time_str):
             return now.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=0)
         except ValueError:
             return None
+
 
     if len(time_str) == 4 and time_str.isdigit():
         try:
@@ -97,7 +113,10 @@ def parse_time(time_str):
         except ValueError:
             return None
 
+
     return None
+
+
 
 
 def add_record(time_str, keyword, note=""):
@@ -105,11 +124,14 @@ def add_record(time_str, keyword, note=""):
     if not boss:
         return "❌ 找不到王"
 
+
     death_time = parse_time(time_str)
     if not death_time:
         return "❌ 時間格式錯誤"
 
+
     spawn_time = death_time + timedelta(minutes=boss["respawn"])
+
 
     for b in spawn_list:
         if b["name"] == boss["name"]:
@@ -122,12 +144,14 @@ def add_record(time_str, keyword, note=""):
                 f"下次出現：{spawn_time.strftime('%m/%d %H:%M:%S')}"
             )
 
+
     spawn_list.append({
         "name": boss["name"],
         "time": spawn_time,
         "note": note,
         "respawn": boss["respawn"]
     })
+
 
     return (
         f"✅ 新增 [{boss['name']}]\n"
@@ -137,23 +161,30 @@ def add_record(time_str, keyword, note=""):
     )
 
 
+
+
 def show_table():
     if not spawn_list:
         return "目前沒有紀錄"
 
+
     now = now_tw()
     display_list = []
+
 
     for b in spawn_list:
         display_time = b["time"]
         respawn_minutes = b["respawn"]
         overdue_count = 0
 
+
         while display_time < now:
             display_time += timedelta(minutes=respawn_minutes)
             overdue_count += 1
 
+
         diff = int((display_time - now).total_seconds() / 60)
+
 
         if diff <= 30:
             status = f"🟡剩{diff}分"
@@ -162,25 +193,33 @@ def show_table():
         else:
             status = f"⚪剩{diff}分"
 
+
         if overdue_count > 0:
             note_text = ""
         else:
             note_text = f" #{b['note']}" if b["note"] else ""
 
+
         overdue_text = f" (過{overdue_count})" if overdue_count > 0 else ""
+
 
         display_list.append({
             "time": display_time,
             "text": f"{display_time.strftime('%H:%M:%S')} {b['name']}{note_text}{overdue_text}（{status}）"
         })
 
+
     display_list.sort(key=lambda x: x["time"])
+
 
     lines = ["出王時間表："]
     for item in display_list:
         lines.append(item["text"])
 
+
     return "\n".join(lines)
+
+
 
 
 def help_text():
@@ -199,13 +238,18 @@ def help_text():
     )
 
 
+
+
 @app.route("/", methods=["GET"])
 def home():
     return "LINE Bot is running"
 
+
 @app.route("/health")
 def health():
     return "OK", 200
+
+
 
 
 @app.route("/webhook", methods=["POST"])
@@ -213,13 +257,17 @@ def webhook():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
 
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
         print("❌ 簽名錯誤")
         abort(400)
 
+
     return "OK"
+
+
 
 
 # ===== 白名單設定（放這裡）=====
@@ -231,6 +279,7 @@ ALLOWED_USERS = [
     "朋友的userId"
 ]
 
+
 ALLOWED_GROUPS = [
     "Cf3f5fab9f763715f9a4127cc291e824b",
     "你的groupId2",
@@ -239,16 +288,32 @@ ALLOWED_GROUPS = [
 ]
 
 
+
+
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
 
+
     source_type = event.source.type
 
-   
+
+    # ===== 👇 加在這裡（抓ID用）=====
+    print("type:", event.source.type)
+
+
+    if event.source.type == "user":
+        print("user_id:", event.source.user_id)
+
+
+    if event.source.type == "group":
+        print("group_id:", event.source.group_id)
+
+
     # ===== 原本程式繼續 =====
     # ===== 🔒 權限判斷 =====
     if source_type == "user":
         user_id = event.source.user_id
+
 
         if user_id not in ALLOWED_USERS:
             with ApiClient(configuration) as api_client:
@@ -261,35 +326,45 @@ def handle_message(event):
                 )
             return
 
+
     elif source_type == "group":
         group_id = event.source.group_id
+
 
         if group_id not in ALLOWED_GROUPS:
             return
 
+
     else:
         return
 
+
     user_msg = event.message.text.strip()
+
 
     if user_msg == "出":
         reply_text = show_table()
 
+
     elif user_msg == "紀錄王數量":
         reply_text = f"📊 目前已紀錄：{len(spawn_list)} 隻"
+
 
     elif user_msg == "維護重置":
         spawn_list.clear()
         reply_text = "🔄 已清空所有紀錄"
 
+
     elif user_msg.lower() == "help":
         reply_text = help_text()
+
 
     else:
         try:
             parts = shlex.split(user_msg)
         except ValueError:
             return
+
 
         if len(parts) >= 2:
             time_str = parts[0]
@@ -298,6 +373,7 @@ def handle_message(event):
             reply_text = add_record(time_str, keyword, note)
         else:
             return
+
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -309,6 +385,9 @@ def handle_message(event):
         )
 
 
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
