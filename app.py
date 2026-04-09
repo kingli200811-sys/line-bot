@@ -222,8 +222,56 @@ def webhook():
     return "OK"
 
 
+# ===== 白名單設定（放這裡）=====
+ALLOWED_USERS = [
+    "你的userId",
+    "朋友的userId"
+]
+
+ALLOWED_GROUPS = [
+    "你的groupId"
+]
+
+
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+
+    source_type = event.source.type
+
+    # ===== 👇 加在這裡（抓ID用）=====
+    print("type:", event.source.type)
+
+    if event.source.type == "user":
+        print("user_id:", event.source.user_id)
+
+    if event.source.type == "group":
+        print("group_id:", event.source.group_id)
+
+    # ===== 原本程式繼續 =====
+    # ===== 🔒 權限判斷 =====
+    if source_type == "user":
+        user_id = event.source.user_id
+
+        if user_id not in ALLOWED_USERS:
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(
+                        reply_token=event.reply_token,
+                        messages=[TextMessage(text="此機器人為私人使用")]
+                    )
+                )
+            return
+
+    elif source_type == "group":
+        group_id = event.source.group_id
+
+        if group_id not in ALLOWED_GROUPS:
+            return
+
+    else:
+        return
+
     user_msg = event.message.text.strip()
 
     if user_msg == "出":
