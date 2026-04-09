@@ -282,7 +282,7 @@ ALLOWED_USERS = [
 
 ALLOWED_GROUPS = [
     "Cf3f5fab9f763715f9a4127cc291e824b",
-    "你的groupId2",
+    "Cc66170c1f1dae057f35ef100c79506bb",
     "你的groupId3",
     "你的groupId4"
 ]
@@ -297,16 +297,6 @@ def handle_message(event):
     source_type = event.source.type
 
 
-    # ===== 👇 加在這裡（抓ID用）=====
-    print("type:", event.source.type)
-
-
-    if event.source.type == "user":
-        print("user_id:", event.source.user_id)
-
-
-    if event.source.type == "group":
-        print("group_id:", event.source.group_id)
 
 
     # ===== 原本程式繼續 =====
